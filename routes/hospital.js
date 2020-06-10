@@ -1,41 +1,38 @@
 var express = require('express');
-var bcrypt = require('bcryptjs');
-var jwt = require('jsonwebtoken');
 var mdAuthentication = require('../middlewares/authentication');
-
 var app = express();
-var User = require('../models/user');
+var Hospital = require('../models/hospital');
 
 
 // ==========================
-//  Get all users
+//  Get all hospitals
 // ==========================
 app.get('/', (req, res, next) => {
 
     var from = req.query.from || 0;
     from = Number(from);
 
-    User.find({}, 'name email img role')
+    Hospital.find({})
         .skip(from)
         .limit(5)
+        .populate('user', 'name email')
         .exec((error, data) => {
             if (error) {
                 return res.status(500).json({
                     success: false,
-                    data: 'Database error on load users',
+                    data: 'Database error on load hospital',
                     error
                 });
             }
 
-
-            User.count({}, (error, count) => {
+            Hospital.count({}, (error, count) => {
                 res.status(200).json({
                     success: true,
                     count,
                     data
                 });
-
             })
+
 
         });
 });
@@ -43,20 +40,20 @@ app.get('/', (req, res, next) => {
 
 
 // ==========================
-//  Update User
+//  Update Hospital
 // ==========================
 app.put('/:id', mdAuthentication.verifyToken, (req, res) => {
 
     var id = req.params.id;
     var body = req.body;
 
-    User.findById(id, (error, data) => {
+    Hospital.findById(id, (error, data) => {
 
 
         if (error) {
             return res.status(500).json({
                 success: false,
-                data: 'Database error on find user',
+                data: 'Database error on find hospital',
                 error
             });
         }
@@ -64,24 +61,22 @@ app.put('/:id', mdAuthentication.verifyToken, (req, res) => {
         if (!data) {
             return res.status(400).json({
                 success: false,
-                data: 'User whit id ' + id + ' do not exist'
+                data: 'Hospital with id ' + id + ' do not exist'
             });
         }
 
         data.name = body.name;
-        data.email = body.email;
-        data.role = body.role;
+        data.user = req.user._id;
+
 
         data.save((error, data) => {
             if (error) {
                 return res.status(400).json({
                     success: false,
-                    data: 'Error on user update',
+                    data: 'Error on Hospital update',
                     error
                 });
             }
-
-            data.password = ':D';
 
             res.status(200).json({
                 success: true,
@@ -95,24 +90,21 @@ app.put('/:id', mdAuthentication.verifyToken, (req, res) => {
 });
 
 // ==========================
-//  Create a users
+//  Create a Hospital
 // ==========================
-app.post('/', (req, res, next) => {
+app.post('/', mdAuthentication.verifyToken, (req, res, next) => {
     var body = req.body;
 
-    var user = new User({
+    var hospital = new Hospital({
         name: body.name,
-        email: body.email,
-        password: bcrypt.hashSync(body.password, 10),
-        img: body.img,
-        role: body.role,
+        user: req.user._id,
     });
 
-    user.save((error, data) => {
+    hospital.save((error, data) => {
         if (error) {
             return res.status(400).json({
                 success: false,
-                data: 'Database error on save user',
+                data: 'Database error on save hospital',
                 error
             });
         }
@@ -129,17 +121,17 @@ app.post('/', (req, res, next) => {
 
 
 // ==========================
-//  Delete a users
+//  Delete a hospital
 // ==========================
 app.delete('/:id', mdAuthentication.verifyToken, (req, res) => {
 
     var id = req.params.id;
 
-    User.findByIdAndRemove(id, (error, data) => {
+    Hospital.findByIdAndRemove(id, (error, data) => {
         if (error) {
             return res.status(400).json({
                 success: false,
-                data: 'Database error on delete user',
+                data: 'Database error on delete hospital',
                 error
             });
         }
@@ -147,7 +139,7 @@ app.delete('/:id', mdAuthentication.verifyToken, (req, res) => {
         if (!data) {
             return res.status(400).json({
                 success: false,
-                data: 'User whit id ' + id + ' do not exist'
+                data: 'Hospital with id ' + id + ' do not exist'
             });
         }
 

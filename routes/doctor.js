@@ -1,41 +1,39 @@
 var express = require('express');
-var bcrypt = require('bcryptjs');
-var jwt = require('jsonwebtoken');
 var mdAuthentication = require('../middlewares/authentication');
-
 var app = express();
-var User = require('../models/user');
+var Doctor = require('../models/doctor');
 
 
 // ==========================
-//  Get all users
+//  Get all doctors
 // ==========================
 app.get('/', (req, res, next) => {
 
     var from = req.query.from || 0;
     from = Number(from);
 
-    User.find({}, 'name email img role')
+    Doctor.find({})
         .skip(from)
         .limit(5)
+        .populate('user', 'name email')
+        .populate('hospital')
         .exec((error, data) => {
             if (error) {
                 return res.status(500).json({
                     success: false,
-                    data: 'Database error on load users',
+                    data: 'Database error on load Doctors',
                     error
                 });
             }
 
-
-            User.count({}, (error, count) => {
+            Doctor.count({}, (error, count) => {
                 res.status(200).json({
                     success: true,
                     count,
                     data
                 });
+            });
 
-            })
 
         });
 });
@@ -43,20 +41,20 @@ app.get('/', (req, res, next) => {
 
 
 // ==========================
-//  Update User
+//  Update Doctor
 // ==========================
 app.put('/:id', mdAuthentication.verifyToken, (req, res) => {
 
     var id = req.params.id;
     var body = req.body;
 
-    User.findById(id, (error, data) => {
+    Doctor.findById(id, (error, data) => {
 
 
         if (error) {
             return res.status(500).json({
                 success: false,
-                data: 'Database error on find user',
+                data: 'Database error on find doctor',
                 error
             });
         }
@@ -64,24 +62,23 @@ app.put('/:id', mdAuthentication.verifyToken, (req, res) => {
         if (!data) {
             return res.status(400).json({
                 success: false,
-                data: 'User whit id ' + id + ' do not exist'
+                data: 'Doctor with id ' + id + ' do not exist'
             });
         }
 
         data.name = body.name;
-        data.email = body.email;
-        data.role = body.role;
+        data.user = req.user._id;
+        data.hospital = body.hospital;
+
 
         data.save((error, data) => {
             if (error) {
                 return res.status(400).json({
                     success: false,
-                    data: 'Error on user update',
+                    data: 'Error on Doctor update',
                     error
                 });
             }
-
-            data.password = ':D';
 
             res.status(200).json({
                 success: true,
@@ -95,24 +92,22 @@ app.put('/:id', mdAuthentication.verifyToken, (req, res) => {
 });
 
 // ==========================
-//  Create a users
+//  Create a Doctor
 // ==========================
-app.post('/', (req, res, next) => {
+app.post('/', mdAuthentication.verifyToken, (req, res, next) => {
     var body = req.body;
 
-    var user = new User({
+    var doctor = new Doctor({
         name: body.name,
-        email: body.email,
-        password: bcrypt.hashSync(body.password, 10),
-        img: body.img,
-        role: body.role,
+        user: req.user._id,
+        hospital: body.hospital
     });
 
-    user.save((error, data) => {
+    doctor.save((error, data) => {
         if (error) {
             return res.status(400).json({
                 success: false,
-                data: 'Database error on save user',
+                data: 'Database error on save doctor',
                 error
             });
         }
@@ -129,17 +124,17 @@ app.post('/', (req, res, next) => {
 
 
 // ==========================
-//  Delete a users
+//  Delete a doctor
 // ==========================
 app.delete('/:id', mdAuthentication.verifyToken, (req, res) => {
 
     var id = req.params.id;
 
-    User.findByIdAndRemove(id, (error, data) => {
+    Doctor.findByIdAndRemove(id, (error, data) => {
         if (error) {
             return res.status(400).json({
                 success: false,
-                data: 'Database error on delete user',
+                data: 'Database error on delete doctor',
                 error
             });
         }
@@ -147,7 +142,7 @@ app.delete('/:id', mdAuthentication.verifyToken, (req, res) => {
         if (!data) {
             return res.status(400).json({
                 success: false,
-                data: 'User whit id ' + id + ' do not exist'
+                data: 'Doctor with id ' + id + ' do not exist'
             });
         }
 
